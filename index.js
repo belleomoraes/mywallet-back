@@ -3,6 +3,9 @@ import cors from "cors";
 import joi from "joi";
 import { MongoClient, ObjectId } from "mongodb";
 import dotenv from "dotenv";
+import bcrypt from "bcrypt";
+import { v4 as uuid } from "uuid";
+
 dotenv.config();
 const app = express();
 app.use(cors());
@@ -36,16 +39,17 @@ app.post("/", async (req, res) => {
   const isUserExists = await db.collection("user").findOne({ email });
 
   if (validation.error) {
-    res.sendStatus(422);
-    return;
+    return res.sendStatus(422);
   }
 
-  if (!isUserExists) {
-    res.sendStatus(404);
-    return;
+  if (!isUserExists || !bcrypt.compareSync(password, isUserExists.password)) {
+    return res.sendStatus(404);
   }
-  //comparar a criptação
-  res.sendStatus(200);
+
+  const token = uuid();
+  await db.collection("sessions").insertOne({ userId: isUserExists._id, token });
+
+  res.send(token);
 });
 
 app.post("/sign-up", async (req, res) => {
@@ -54,22 +58,20 @@ app.post("/sign-up", async (req, res) => {
   const isEmailExists = await db.collection("user").findOne({ email });
 
   if (validation.error) {
-    res.sendStatus(422);
-    return;
+    return res.sendStatus(422);
   }
 
   if (isEmailExists) {
-    res.sendStatus(400);
-    return;
+    return res.sendStatus(400);
   }
 
   if (password !== confirmPassword) {
-    res.sendStatus(400);
-    return;
+    return res.sendStatus(400);
   }
 
   try {
-    db.collection("user").insertOne({ name, email, password }); //n esquecer de criptografar password
+    const passwordHash = bcrypt.hashSync(password, 10);
+    await db.collection("user").insertOne({ name, email, password: passwordHash });
     res.sendStatus(201);
   } catch (error) {
     console.log(error.message);
@@ -78,9 +80,19 @@ app.post("/sign-up", async (req, res) => {
 });
 
 app.get("/home", async (req, res) => {
-  const userId = req.headers.user;
+  const { authorization } = req.headers;
+  const token = authorization?.replace("Bearer ", "");
+  if (!token) {
+    return res.sendStatus(401);
+  }
+
+  const session = await db.collection("sessions").findOne({ token });
+
+  if (!session) {
+    return res.sendStatus(401);
+  }
   try {
-    const historyUser = await db.collection("history").find({ userId }).toArray();
+    const historyUser = await db.collection("history").find({ _id: session.userId }).toArray();
     res.send(historyUser);
   } catch (error) {
     console.log(error.message);
@@ -90,45 +102,57 @@ app.get("/home", async (req, res) => {
 
 app.post("/deposit", async (req, res) => {
   const { date, description, value } = req.body;
-  const userId = req.headers.user;
+  const { authorization } = req.headers;
   const validation = newRecordSchema.validate(req.body, { abortEarly: false });
-  const isUserExists = await db.collection("user").findOne({ _id: ObjectId(userId) });
+  const token = authorization?.replace("Bearer ", "");
+  if (!token) {
+    return res.sendStatus(401);
+  }
+
+  const session = await db.collection("sessions").findOne({ token });
+
+  if (!session) {
+    return res.sendStatus(401);
+  }
 
   if (validation.error) {
-    res.sendStatus(422);
-    return;
-  }
-
-  if (!isUserExists) {
-    res.sendStatus(404);
-    return;
-  }
-
-  db.collection("history").insertOne({ date, description, value, userId: userId, type: "deposit" });
-  res.sendStatus(201);
-});
-
-app.post("/withdraw", async (req, res) => {
-  const { date, description, value } = req.body;
-  const userId = req.headers.user;
-  const validation = newRecordSchema.validate(req.body, { abortEarly: false });
-  const isUserExists = await db.collection("user").findOne({ _id: ObjectId(userId) });
-
-  if (validation.error) {
-    res.sendStatus(422);
-    return;
-  }
-
-  if (!isUserExists) {
-    res.sendStatus(404);
-    return;
+    return res.sendStatus(422);
   }
 
   db.collection("history").insertOne({
     date,
     description,
     value,
-    userId: userId,
+    userId: session.userId,
+    type: "deposit",
+  });
+  res.sendStatus(201);
+});
+
+app.post("/withdraw", async (req, res) => {
+  const { date, description, value } = req.body;
+  const { authorization } = req.headers;
+  const validation = newRecordSchema.validate(req.body, { abortEarly: false });
+  const token = authorization?.replace("Bearer ", "");
+  if (!token) {
+    return res.sendStatus(401);
+  }
+
+  const session = await db.collection("sessions").findOne({ token });
+
+  if (!session) {
+    return res.sendStatus(401);
+  }
+
+  if (validation.error) {
+    return res.sendStatus(422);
+  }
+
+  db.collection("history").insertOne({
+    date,
+    description,
+    value,
+    userId: session.userId,
     type: "withdraw",
   });
   res.sendStatus(201);
