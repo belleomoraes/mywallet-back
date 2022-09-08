@@ -82,6 +82,7 @@ app.post("/sign-up", async (req, res) => {
 app.get("/home", async (req, res) => {
   const { authorization } = req.headers;
   const token = authorization?.replace("Bearer ", "");
+
   if (!token) {
     return res.sendStatus(401);
   }
@@ -92,7 +93,8 @@ app.get("/home", async (req, res) => {
     return res.sendStatus(401);
   }
   try {
-    const historyUser = await db.collection("history").find({ _id: session.userId }).toArray();
+    const historyUser = await db.collection("history").find({ userId: session.userId }).toArray();
+
     res.send(historyUser);
   } catch (error) {
     console.log(error.message);
@@ -119,6 +121,7 @@ app.post("/deposit", async (req, res) => {
     return res.sendStatus(422);
   }
 
+  
   db.collection("history").insertOne({
     date,
     description,
