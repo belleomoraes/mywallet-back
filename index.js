@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import joi from "joi";
-import { MongoClient, ObjectId } from "mongodb";
+import { MongoClient } from "mongodb";
 import dotenv from "dotenv";
 import bcrypt from "bcrypt";
 import { v4 as uuid } from "uuid";
@@ -39,11 +39,11 @@ app.post("/", async (req, res) => {
   const isUserExists = await db.collection("user").findOne({ email });
 
   if (validation.error) {
-    return res.sendStatus(422);
+    return res.status(422).send({ message: validation.error.message });
   }
 
   if (!isUserExists || !bcrypt.compareSync(password, isUserExists.password)) {
-    return res.sendStatus(404);
+    return res.status(404).send({ message: "E-mail ou senha incorretos" });
   }
 
   const token = uuid();
@@ -58,15 +58,15 @@ app.post("/sign-up", async (req, res) => {
   const isEmailExists = await db.collection("user").findOne({ email });
 
   if (validation.error) {
-    return res.sendStatus(422);
+    return res.status(422).send({ message: validation.error.message });
   }
 
   if (isEmailExists) {
-    return res.sendStatus(400);
+    return res.status(400).send({ message: "Este e-mail já está cadastrado" });
   }
 
   if (password !== confirmPassword) {
-    return res.sendStatus(400);
+    return res.status(400).send({ message: "A senha não confere" });
   }
 
   try {
@@ -74,8 +74,7 @@ app.post("/sign-up", async (req, res) => {
     await db.collection("user").insertOne({ name, email, password: passwordHash });
     res.sendStatus(201);
   } catch (error) {
-    console.log(error.message);
-    res.sendStatus(500);
+    res.status(500).send({ message: error.message });
   }
 });
 
@@ -90,15 +89,13 @@ app.get("/home", async (req, res) => {
   const session = await db.collection("sessions").findOne({ token });
 
   if (!session) {
-    return res.sendStatus(401);
+    return res.status(401).send({ message: "O usuário não está logado" });
   }
   try {
     const historyUser = await db.collection("history").find({ userId: session.userId }).toArray();
-
     res.send(historyUser);
   } catch (error) {
-    console.log(error.message);
-    res.sendStatus(500);
+    res.status(500).send({ message: error.message });
   }
 });
 
@@ -114,14 +111,13 @@ app.post("/deposit", async (req, res) => {
   const session = await db.collection("sessions").findOne({ token });
 
   if (!session) {
-    return res.sendStatus(401);
+    return res.status(401).send({ message: "O usuário não está logado" });
   }
 
   if (validation.error) {
-    return res.sendStatus(422);
+    return res.status(422).send({ message: validation.error.message });
   }
 
-  
   db.collection("history").insertOne({
     date,
     description,
@@ -144,11 +140,11 @@ app.post("/withdraw", async (req, res) => {
   const session = await db.collection("sessions").findOne({ token });
 
   if (!session) {
-    return res.sendStatus(401);
+    return res.status(401).send({ message: "O usuário não está logado" });
   }
 
   if (validation.error) {
-    return res.sendStatus(422);
+    return res.status(422).send({ message: validation.error.message });
   }
 
   db.collection("history").insertOne({
