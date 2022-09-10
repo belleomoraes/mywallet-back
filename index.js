@@ -47,9 +47,12 @@ app.post("/", async (req, res) => {
   }
 
   const token = uuid();
+  const username = isUserExists.name;
+console.log(token)
+console.log(username)
   await db.collection("sessions").insertOne({ userId: isUserExists._id, token });
 
-  res.send(token);
+  res.send({token, username});
 });
 
 app.post("/sign-up", async (req, res) => {
@@ -92,7 +95,6 @@ app.get("/home", async (req, res) => {
     return res.status(401).send({ message: "O usuário não está logado" });
   }
   try {
-    const userInfo = await db.collection("user").findOne({_id: session.userId})
     const historyUser = await db.collection("history").find({ userId: session.userId }).toArray();
     res.send(historyUser);
   } catch (error) {
