@@ -5,6 +5,7 @@ import { MongoClient } from "mongodb";
 import dotenv from "dotenv";
 import bcrypt from "bcrypt";
 import { v4 as uuid } from "uuid";
+import dayjs from "dayjs";
 
 dotenv.config();
 const app = express();
@@ -29,7 +30,6 @@ const signupSchema = joi.object({
 });
 
 const newRecordSchema = joi.object({
-  date: joi.date().required(), //confirmar o envio dessa data
   description: joi.string().trim().required(),
   value: joi.number().required(),
 });
@@ -62,7 +62,7 @@ app.post("/sign-up", async (req, res) => {
   }
 
   if (isEmailExists) {
-    return res.status(400).send({ message: "Este e-mail já está cadastrado" });
+    return res.status(409).send({ message: "Este e-mail já está cadastrado" });
   }
 
   if (password !== confirmPassword) {
@@ -92,6 +92,7 @@ app.get("/home", async (req, res) => {
     return res.status(401).send({ message: "O usuário não está logado" });
   }
   try {
+    const userInfo = await db.collection("user").findOne({_id: session.userId})
     const historyUser = await db.collection("history").find({ userId: session.userId }).toArray();
     res.send(historyUser);
   } catch (error) {
@@ -100,7 +101,7 @@ app.get("/home", async (req, res) => {
 });
 
 app.post("/deposit", async (req, res) => {
-  const { date, description, value } = req.body;
+  const { description, value } = req.body;
   const { authorization } = req.headers;
   const validation = newRecordSchema.validate(req.body, { abortEarly: false });
   const token = authorization?.replace("Bearer ", "");
@@ -119,7 +120,7 @@ app.post("/deposit", async (req, res) => {
   }
 
   db.collection("history").insertOne({
-    date,
+    date: dayjs().format("D/M"),
     description,
     value,
     userId: session.userId,
@@ -148,7 +149,7 @@ app.post("/withdraw", async (req, res) => {
   }
 
   db.collection("history").insertOne({
-    date,
+    date: dayjs().format("D/M"),
     description,
     value,
     userId: session.userId,
