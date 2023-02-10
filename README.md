@@ -7,7 +7,7 @@ With this API, users can:
 - Sign up
 - Sign in
 - Register debit and credits
-- Check your history
+- List all financial events for a user
 
 
 ## Technologies
