@@ -1,4 +1,4 @@
-# Shortly
+# My Wallet
 
 This is an API for expense control.
 
@@ -17,9 +17,10 @@ With this API, users can:
 - Libraries: bcrypt, cors, dotenv, joi, nanoid, uuid
 
 ## How to run
-1. Clone this repository
-2. Configure .env accordingly to .env-example
-3. Install dependencies: 
+1. Clone the front-end repository at https://github.com/belleomoraes/mywallet-front and follow instructions to run
+2. Clone this repository
+3. Configure .env accordingly to .env-example
+4. Install dependencies: 
 ```bash
 npm i
 ```
@@ -27,4 +28,4 @@ npm i
 ```bash
 npm start
 ```
-5.Link with front-end: https://github.com/belleomoraes/mywallet-front
+5.Finally access http://localhost:3000 on your favorite browser.
